@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation, Flatten, Conv2D, MaxPooling2D
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.layers import Dropout
 import datetime
 import tensorflow.summary as summary_writer
 from air_raid_utils import get_stacked_frames
@@ -13,7 +14,7 @@ class DQN_Agent:
     #
     # Initializes attributes and constructs CNN model and target_model
     #
-    def __init__(self, env, state_size, action_size,num_episodes,num_steps,batch_size, gamma:float = 0.985, memory_size:int = 10000,update_rate:int = 10):
+    def __init__(self, env, state_size, action_size,num_episodes,num_steps,batch_size, gamma:float = 0.9, memory_size:int = 10000,update_rate:int = 50):
         self.state_size = state_size
         #print(state_size)
         #print(batch_size)
@@ -27,8 +28,8 @@ class DQN_Agent:
         # Hyperparameters
         self.gamma = gamma            # Discount rate
         self.epsilon = 1.0          # Exploration rate
-        self.epsilon_min = 0.05      # Minimal exploration rate (epsilon-greedy)
-        self.epsilon_decay = 0.995  # Decay rate for epsilon
+        self.epsilon_min = 0.01     # Minimal exploration rate (epsilon-greedy)
+        self.epsilon_decay = 0.99  # Decay rate for epsilon
         self.update_rate = update_rate # Number of steps until updating the target network
         self.skip_start = 90
         self.model = self._build_model() # Q Network
@@ -40,23 +41,42 @@ class DQN_Agent:
     # Constructs CNN
     #
     def _build_model(self):
-        model = Sequential()
-        
-        # Conv Layers
-        model.add(Conv2D(32, (8, 8), strides=4, padding='same', input_shape=self.state_size))
-        model.add(Activation('relu'))
-        
-        model.add(Conv2D(64, (4, 4), strides=2, padding='same'))
-        model.add(Activation('relu'))
-        
-        model.add(Conv2D(64, (3, 3), strides=1, padding='same'))
-        model.add(Activation('relu'))
-        model.add(Flatten())
+        #model 1
+        #model = Sequential()
+        #
+        ## Conv Layers
+        #model.add(Conv2D(32, (8, 8), strides=4, padding='same', input_shape=self.state_size))
+        #model.add(Activation('relu'))
+        #
+        #model.add(Conv2D(64, (4, 4), strides=2, padding='same'))
+        #model.add(Activation('relu'))
+        #
+        #model.add(Conv2D(64, (3, 3), strides=1, padding='same'))
+        #model.add(Activation('relu'))
+        #model.add(Flatten())
+#
+        ## FC Layers
+        #model.add(Dense(512, activation='relu'))
+        #model.add(Dense(self.action_size, activation='linear'))
+        #
+        #model.compile(loss='huber', optimizer=Adam())
+        #return model
 
-        # FC Layers
-        model.add(Dense(512, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
-        
+        #model 2
+
+        model = Sequential()
+        model.add(Conv2D(32, (8, 8), strides=(4, 4), input_shape=(self.state_size[0], self.state_size[1], 4)))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Conv2D(64, (4, 4), strides=(2, 2)))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Flatten())
+        model.add(Dense(512))
+        model.add(Activation('relu'))
+        model.add(Dropout(0.5))  # Adding dropout for regularization
+        model.add(Dense(self.action_size))
+        model.add(Activation('linear'))
         model.compile(loss='huber', optimizer=Adam())
         return model
 
@@ -197,7 +217,3 @@ class DQN_Agent:
                 fname = f'models/10k-memory_{e}-games.weights.h5'
                 print(f'Saving: {fname}')
                 self.save(fname)
-                sum_10_games = 0
-
-            if game_score > 15:
-                break
